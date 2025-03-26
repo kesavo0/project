@@ -1,0 +1,128 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[2]:
+
+
+# Import necessary libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# Load dataset
+file_path = r"C:\Users\Jayadeep\OneDrive\Desktop\Unified_mentor\Mobile Phone Pricing\dataset.csv"
+df = pd.read_csv(file_path)
+
+# Display dataset info
+print("Dataset Shape:", df.shape)
+print(df.head())
+
+# Split features and target
+X = df.drop(columns=['price_range'])  # Features
+y = df['price_range']  # Target variable
+
+# Identify non-binary columns for scaling
+non_binary_cols = [col for col in X.columns if len(X[col].unique()) > 2]
+
+# Apply feature scaling only to non-binary columns
+scaler = StandardScaler()
+X[non_binary_cols] = scaler.fit_transform(X[non_binary_cols])
+
+# Train-test split (More training data to reduce overfitting)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.15, random_state=42, stratify=y)
+
+# Initialize models
+svm = SVC()
+knn = KNeighborsClassifier()
+
+# Optimized hyperparameter tuning using GridSearchCV
+param_grid_svm = {
+    'C': [0.1, 1, 10],  # Regularization to control overfitting
+    'gamma': ['scale', 0.01, 0.1, 1],  # Controls complexity for RBF kernel
+    'kernel': ['rbf']  # Best for complex data
+}
+
+param_grid_knn = {
+    'n_neighbors': [3, 5, 7],
+    'weights': ['uniform', 'distance']
+}
+
+# Run GridSearchCV with verbose=1 for progress updates
+print("\n🔍 Running GridSearch for SVM...")
+grid_svm = GridSearchCV(svm, param_grid_svm, cv=5, scoring='accuracy', n_jobs=-1, verbose=1)
+grid_svm.fit(X_train, y_train)
+
+print("\n🔍 Running GridSearch for KNN...")
+grid_knn = GridSearchCV(knn, param_grid_knn, cv=5, scoring='accuracy', n_jobs=-1, verbose=1)
+grid_knn.fit(X_train, y_train)
+
+# Best models
+best_svm = grid_svm.best_estimator_
+best_knn = grid_knn.best_estimator_
+
+# Predictions
+svm_preds = best_svm.predict(X_test)
+knn_preds = best_knn.predict(X_test)
+
+# Evaluation
+print("\n✅ Optimized SVM Accuracy:", accuracy_score(y_test, svm_preds))
+print("\n✅ KNN Accuracy:", accuracy_score(y_test, knn_preds))
+
+print("\n📊 Optimized SVM Classification Report:\n", classification_report(y_test, svm_preds))
+print("\n📊 KNN Classification Report:\n", classification_report(y_test, knn_preds))
+
+# Confusion Matrix Visualization
+fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+sns.heatmap(confusion_matrix(y_test, svm_preds), annot=True, fmt="d", cmap="Blues", ax=ax[0])
+ax[0].set_title("Optimized SVM Confusion Matrix")
+
+sns.heatmap(confusion_matrix(y_test, knn_preds), annot=True, fmt="d", cmap="Reds", ax=ax[1])
+ax[1].set_title("KNN Confusion Matrix")
+
+plt.show()
+
+# Manual Input Prediction
+def manual_prediction(model):
+    print("\n⚡ Enter values for manual prediction (one by one):")
+    user_input = []
+    for col in X.columns:
+        value = float(input(f"Enter {col}: "))  # Ensure numeric input
+        user_input.append(value)
+    
+    # Convert to DataFrame & scale non-binary features
+    input_df = pd.DataFrame([user_input], columns=X.columns)
+    input_df[non_binary_cols] = scaler.transform(input_df[non_binary_cols])
+    
+    # Predict
+    pred = model.predict(input_df)[0]
+    print(f"\n📱 Predicted Price Range: {pred}")
+
+# Ask user which model to use
+print("\n🛠️ Choose a model for prediction:")
+choice = input("Type 'svm' for SVM or 'knn' for KNN: ").strip().lower()
+if choice == 'svm':
+    manual_prediction(best_svm)
+elif choice == 'knn':
+    manual_prediction(best_knn)
+else:
+    print("❌ Invalid choice! Exiting.")
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
